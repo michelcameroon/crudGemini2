@@ -1,0 +1,177 @@
+```python
+# models.py
+
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
+class Student(db.Model):
+    __tablename__ = 'student'
+    id = db.Column(db.Integer, primary_key=True)
+    firstName = db.Column(db.String(255), nullable=False)
+    lastName = db.Column(db.String(255), nullable=False)
+    age = db.Column(db.Integer, nullable=False)
+
+    def __repr__(self):
+        return f'<Student {self.firstName} {self.lastName}>'
+```
+
+```python
+# app.py
+
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from models import db, Student 
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sokolo.db'  # Replace with your actual database URI
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+
+with app.app_context():
+    db.create_all()
+
+@app.route('/')
+def index():
+    students = Student.query.all()
+    return render_template('list.html', students=students)
+
+@app.route('/create', methods=['GET', 'POST'])
+def create():
+    if request.method == 'POST':
+        firstName = request.form['firstName']
+        lastName = request.form['lastName']
+        age = request.form['age']
+        new_student = Student(firstName=firstName, lastName=lastName, age=age)
+        db.session.add(new_student)
+        db.session.commit()
+        return redirect(url_for('index'))
+    return render_template('create.html')
+
+@app.route('/update/<int:id>', methods=['GET', 'POST'])
+def update(id):
+    student = Student.query.get_or_404(id)
+    if request.method == 'POST':
+        student.firstName = request.form['firstName']
+        student.lastName = request.form['lastName']
+        student.age = request.form['age']
+        db.session.commit()
+        return redirect(url_for('index'))
+    return render_template('update.html', student=student)
+
+@app.route('/delete/<int:id>')
+def delete(id):
+    student = Student.query.get_or_404(id)
+    db.session.delete(student)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+
+**list.html:**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student List</title>
+</head>
+<body>
+    <h1>Student List</h1>
+    <a href="{{ url_for('create') }}">Create Student</a>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Age</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>{{ student.id }}</td>
+                <td>{{ student.firstName }}</td>
+                <td>{{ student.lastName }}</td>
+                <td>{{ student.age }}</td>
+                <td>
+                    <a href="{{ url_for('update', id=student.id) }}">Update</a> |
+                    <a href="{{ url_for('delete', id=student.id) }}">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+```
+
+**create.html:**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Student</title>
+</head>
+<body>
+    <h1>Create Student</h1>
+    <form method="POST">
+        <label for="firstName">First Name:</label>
+        <input type="text" id="firstName" name="firstName" required><br><br>
+        <label for="lastName">Last Name:</label>
+        <input type="text" id="lastName" name="lastName" required><br><br>
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age" required><br><br>
+        <button type="submit">Create</button>
+    </form>
+</body>
+</html>
+```
+
+**update.html:**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Update Student</title>
+</head>
+<body>
+    <h1>Update Student</h1>
+    <form method="POST">
+        <label for="firstName">First Name:</label>
+        <input type="text" id="firstName" name="firstName" value="{{ student.firstName }}" required><br><br>
+        <label for="lastName">Last Name:</label>
+        <input type="text" id="lastName" name="lastName" value="{{ student.lastName }}" required><br><br>
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age" value="{{ student.age }}" required><br><br>
+        <button type="submit">Update</button>
+    </form>
+</body>
+</html>
+```
+
+**Explanation:**
+
+1. **Create `models.py`:**
+   - Define the `Student` model using `db.Model` from `flask_sqlalchemy`.
+   - Define the table columns: `id` (Integer, primary key), `firstName` (String), `lastName` (String), and `age` (Integer).
+
+2. **Create `app.py`:**
+   - Import necessary modules.
+   - Initialize the Flask app and configure the database URI.
+   - Create the database tables using `db.create_all()`.
+   - Define routes for each action (list, create, update, delete).
+   - Handle form submissions and database interactions.
+
+3. **Create HTML templates:**
+   - `list.html`: Display a table of students with links to update and delete.
+   - `create.html`: Provide a form for creating new students.
+   - `update.html`: Provide a form for updating existing students.
+
+This setup provides a basic CRUD functionality for managing students in your database. You can further enhance it by adding features like search, pagination, and more complex validation.
